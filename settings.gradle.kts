@@ -27,6 +27,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "ZedSecure"
-include(":app")
 include(":shared")
-include(":desktop")
+include(":speedchip")
