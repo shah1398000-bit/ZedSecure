@@ -14,6 +14,7 @@ class SpeedChipApp : Application(), SingletonImageLoader.Factory {
     val settings by lazy { SettingsRepository(this) }
 
     override fun attachBaseContext(base: Context) {
+        CrashReporter.install(base)
         super.attachBaseContext(LocaleManager.wrap(base, SettingsRepository.readLanguageTag(base)))
     }
 
