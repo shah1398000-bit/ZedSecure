@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.coil.svg)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.backdrop)
 }
 
 configurations.configureEach {

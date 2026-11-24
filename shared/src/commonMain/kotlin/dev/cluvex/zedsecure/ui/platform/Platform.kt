@@ -81,6 +81,8 @@ interface Platform {
 
     val hasStatusNotification: Boolean get() = false
 
+    val minimalInterface: Boolean get() = false
+
     val simCountry: String? get() = null
 
     val mobileNetworkCountry: String? get() = null

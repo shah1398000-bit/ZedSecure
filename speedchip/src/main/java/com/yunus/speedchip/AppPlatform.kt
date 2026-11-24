@@ -23,4 +23,5 @@ class AppPlatform(private val ctx: Context) : Platform {
     override fun toast(message: String) { Toast.makeText(ctx, message, Toast.LENGTH_SHORT).show() }
     override val supportsDynamicColor: Boolean get() = true
     override val hasStatusNotification: Boolean get() = true
+    override val minimalInterface: Boolean get() = true
 }

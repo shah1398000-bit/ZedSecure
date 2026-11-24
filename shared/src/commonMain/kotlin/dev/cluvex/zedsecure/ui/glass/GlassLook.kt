@@ -298,6 +298,7 @@ fun GlassLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSetti
         )
     }
 
+    if (!LocalPlatform.current.minimalInterface) {
     Spacer(Modifier.height(24.dp))
     GlassGroup {
         GlassSwitchRow(
@@ -352,6 +353,7 @@ fun GlassLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSetti
             checked = prefs.homeCard,
             onCheckedChange = { v -> edit { it.copy(homeCard = v) } },
         )
+    }
     }
 }
 

@@ -3,20 +3,30 @@ package com.yunus.speedchip
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color as AColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.cluvex.zedsecure.core.platform.LocaleManager
+import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.domain.model.ThemeMode
+import dev.cluvex.zedsecure.ui.glass.GlassWallpaperLayer
+import dev.cluvex.zedsecure.ui.glass.rememberGlassChrome
 import dev.cluvex.zedsecure.ui.platform.LocalPlatform
 import dev.cluvex.zedsecure.ui.settings.SettingsPage
 import dev.cluvex.zedsecure.ui.settings.SettingsScreen
@@ -46,6 +56,12 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.Light -> false
                 ThemeMode.Dark -> true
             }
+            DisposableEffect(dark) {
+                val style = if (dark) SystemBarStyle.dark(AColor.TRANSPARENT)
+                else SystemBarStyle.light(AColor.TRANSPARENT, AColor.TRANSPARENT)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                onDispose {}
+            }
             val langTag = s.language.tag ?: resources.configuration.locales[0].language
             ZedSecureTheme(
                 darkTheme = dark,
@@ -64,19 +80,29 @@ class MainActivity : ComponentActivity() {
                 uiScale = s.uiScale,
             ) {
                 CompositionLocalProvider(LocalPlatform provides platform) {
-                    SettingsScreen(
-                        settings = s,
-                        contentPadding = PaddingValues(),
-                        onUpdate = { repo.update(it) },
-                        onLanguage = { lang ->
-                            repo.update { it.copy(language = lang) }
-                            LocaleManager.reassert(lang.tag)
-                            recreate()
-                        },
-                        modifier = Modifier.safeDrawingPadding(),
-                        initialPage = SettingsPage.Ui,
-                        onDeepLinkBack = { finish() },
-                    )
+                    val glassDesign = s.appDesign == AppDesign.Glass
+                    val chrome = if (glassDesign) rememberGlassChrome() else null
+                    Box(
+                        Modifier.fillMaxSize().then(
+                            if (glassDesign) Modifier
+                            else Modifier.background(MaterialTheme.colorScheme.background)
+                        )
+                    ) {
+                        if (chrome != null) GlassWallpaperLayer(chrome.wall)
+                        SettingsScreen(
+                            settings = s,
+                            contentPadding = PaddingValues(),
+                            onUpdate = { repo.update(it) },
+                            onLanguage = { lang ->
+                                repo.update { it.copy(language = lang) }
+                                LocaleManager.reassert(lang.tag)
+                                recreate()
+                            },
+                            modifier = Modifier.safeDrawingPadding(),
+                            initialPage = SettingsPage.Ui,
+                            onDeepLinkBack = { finish() },
+                        )
+                    }
                 }
             }
         }

@@ -120,9 +120,9 @@ fun SettingsScreen(
     ai: dev.cluvex.zedsecure.ui.settings.AiSection? = null,
     configRepository: dev.cluvex.zedsecure.data.config.ConfigRepository? = null,
 ) {
-    var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
+    var page by rememberSaveable { mutableStateOf(initialPage) }
 
-    var deepLinked by rememberSaveable { mutableStateOf(false) }
+    var deepLinked by rememberSaveable { mutableStateOf(initialPage != SettingsPage.Root) }
 
     androidx.compose.runtime.LaunchedEffect(initialPage) {
         if (initialPage != SettingsPage.Root) {
@@ -1806,6 +1806,7 @@ private fun UiPage(
                 )
             }
         }
+        if (!LocalPlatform.current.minimalInterface) {
         SettingsGroup(title = stringResource(Res.string.settings_group_behaviour)) {
             SettingsSwitchRow(
                 title = stringResource(Res.string.title_pref_confirm_remove),
@@ -1870,6 +1871,7 @@ private fun UiPage(
                     onSelected = { v -> onUpdate { it.copy(trafficTileSize = v) } },
                 )
             }
+        }
         }
     }
 }
