@@ -40,6 +40,7 @@ class SpeedService : Service() {
             var total = rx - rx0 + tx - tx0
             if (vpnActive()) { d /= 2; u /= 2; total /= 2 }
             lastT = t; lastRx = rx; lastTx = tx
+            SpeedState.down.value = d; SpeedState.up.value = u
             nm.notify(1, build(d, u, t - t0, total))
             h.postDelayed(this, 1000)
         }
@@ -47,6 +48,7 @@ class SpeedService : Service() {
 
     override fun onCreate() {
         nm = getSystemService(NotificationManager::class.java)
+        SpeedState.running.value = true
         nm.createNotificationChannel(
             NotificationChannel("speed", "Speed", NotificationManager.IMPORTANCE_LOW))
         t0 = SystemClock.elapsedRealtime(); lastT = t0
@@ -110,5 +112,9 @@ class SpeedService : Service() {
 
     override fun onStartCommand(i: Intent?, f: Int, id: Int) = START_STICKY
     override fun onBind(i: Intent?): IBinder? = null
-    override fun onDestroy() { h.removeCallbacks(tick) }
+    override fun onDestroy() {
+        h.removeCallbacks(tick)
+        SpeedState.running.value = false
+        SpeedState.down.value = 0; SpeedState.up.value = 0
+    }
 }

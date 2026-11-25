@@ -6,7 +6,6 @@ import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
-        if (i.action == Intent.ACTION_BOOT_COMPLETED)
-            c.startForegroundService(Intent(c, SpeedService::class.java))
+        if (i.action == Intent.ACTION_BOOT_COMPLETED && Controls.wantsOn(c)) Controls.start(c)
     }
 }

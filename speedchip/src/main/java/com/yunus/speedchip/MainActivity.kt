@@ -1,7 +1,6 @@
 package com.yunus.speedchip
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color as AColor
 import android.os.Bundle
@@ -9,7 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -20,10 +18,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.cluvex.zedsecure.core.platform.LocaleManager
 import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.domain.model.NotifChip
 import dev.cluvex.zedsecure.domain.model.ThemeMode
 import dev.cluvex.zedsecure.ui.glass.GlassWallpaperLayer
 import dev.cluvex.zedsecure.ui.glass.rememberGlassChrome
@@ -35,22 +37,23 @@ import dev.cluvex.zedsecure.ui.theme.ZedSecureTheme
 class MainActivity : ComponentActivity() {
     private val repo get() = (application as SpeedChipApp).settings
 
-    private val notifPerm =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { startSvc() }
-
-    private fun startSvc() =
-        startForegroundService(Intent(this, SpeedService::class.java))
-
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         enableEdgeToEdge()
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
-            startSvc()
-        else notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+
+        val sp = getSharedPreferences("sc", MODE_PRIVATE)
+        if (!sp.getBoolean("init2", false)) {
+            repo.update { it.copy(liveNotification = true, speedInNotification = true, notifChip = NotifChip.Speed) }
+            sp.edit().putBoolean("init2", true).apply()
+        }
+        if (Controls.wantsOn(this) && !SpeedState.running.value &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+            Controls.start(this)
 
         val platform = AppPlatform(this)
         setContent {
             val s by repo.settings.collectAsStateWithLifecycle()
+            var screen by rememberSaveable { mutableStateOf("home") }
             val dark = when (s.themeMode) {
                 ThemeMode.System -> isSystemInDarkTheme()
                 ThemeMode.Light -> false
@@ -89,19 +92,26 @@ class MainActivity : ComponentActivity() {
                         )
                     ) {
                         if (chrome != null) GlassWallpaperLayer(chrome.wall)
-                        SettingsScreen(
-                            settings = s,
-                            contentPadding = PaddingValues(),
-                            onUpdate = { repo.update(it) },
-                            onLanguage = { lang ->
-                                repo.update { it.copy(language = lang) }
-                                LocaleManager.reassert(lang.tag)
-                                recreate()
-                            },
-                            modifier = Modifier.safeDrawingPadding(),
-                            initialPage = SettingsPage.Ui,
-                            onDeepLinkBack = { finish() },
-                        )
+                        if (screen == "home") {
+                            HomeScreen(
+                                onOpenSettings = { screen = "settings" },
+                                modifier = Modifier.safeDrawingPadding(),
+                            )
+                        } else {
+                            SettingsScreen(
+                                settings = s,
+                                contentPadding = PaddingValues(),
+                                onUpdate = { repo.update(it) },
+                                onLanguage = { lang ->
+                                    repo.update { it.copy(language = lang) }
+                                    LocaleManager.reassert(lang.tag)
+                                    recreate()
+                                },
+                                modifier = Modifier.safeDrawingPadding(),
+                                initialPage = SettingsPage.Ui,
+                                onDeepLinkBack = { screen = "home" },
+                            )
+                        }
                     }
                 }
             }
