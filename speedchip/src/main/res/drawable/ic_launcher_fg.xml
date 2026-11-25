@@ -1,14 +1,26 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
-    android:viewportWidth="36" android:viewportHeight="36">
-    <group android:translateX="6" android:translateY="6">
-        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
-            android:strokeLineCap="round" android:fillColor="#00000000"
-            android:pathData="M5.64,18.36 A9,9 0 1 1 18.36,18.36"/>
-        <path android:strokeColor="#FFFFB300" android:strokeWidth="2"
-            android:strokeLineCap="round" android:fillColor="#00000000"
-            android:pathData="M12,12 L16.5,7.5"/>
-        <path android:fillColor="#FFFFB300"
-            android:pathData="M10.4,12a1.6,1.6 0 1 0 3.2,0a1.6,1.6 0 1 0 -3.2,0z"/>
-    </group>
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeWidth="7" android:strokeLineCap="round"
+        android:strokeColor="#33FFFFFF"
+        android:pathData="M34.2,73.8 A28,28 0 1 1 73.8,73.8"/>
+    <path android:strokeWidth="7" android:strokeLineCap="round"
+        android:pathData="M34.2,73.8 A28,28 0 1 1 76.65,37.54">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:startX="26" android:startY="80"
+                android:endX="82" android:endY="28" android:type="linear">
+                <item android:offset="0" android:color="#FF22D3EE"/>
+                <item android:offset="0.55" android:color="#FFA3E635"/>
+                <item android:offset="1" android:color="#FFFBBF24"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:strokeWidth="5" android:strokeLineCap="round"
+        android:strokeColor="#FFFFFFFF"
+        android:pathData="M54,54 L70.18,42.24"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M47.5,54 a6.5,6.5 0 1 0 13,0 a6.5,6.5 0 1 0 -13,0 z"/>
+    <path android:fillColor="#FFFBBF24"
+        android:pathData="M51.2,54 a2.8,2.8 0 1 0 5.6,0 a2.8,2.8 0 1 0 -5.6,0 z"/>
 </vector>

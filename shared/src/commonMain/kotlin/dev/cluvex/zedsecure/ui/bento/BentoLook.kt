@@ -154,6 +154,7 @@ fun BentoLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSetti
         )
     }
 
+    if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
     SettingsGroup(stringResource(Res.string.bento_group_board)) {
         SettingsSwitchRow(
             title = stringResource(Res.string.bento_indexes),
@@ -168,6 +169,7 @@ fun BentoLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSetti
             onCheckedChange = { v -> edit { it.copy(liveTiles = v) } },
         )
         SettingsActionRow(title = stringResource(Res.string.bento_reset_tiles)) { edit { it.copy(tiles = "") } }
+    }
     }
 
     SettingsGroup(stringResource(Res.string.bento_group_home)) {
@@ -192,6 +194,7 @@ fun BentoLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSetti
                 onCheckedChange = { v -> edit { it.copy(wave = v) } },
             )
         }
+        if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
         SettingsSwitchRow(
             title = stringResource(Res.string.bento_home_speed),
             checked = prefs.homeSpeed,
@@ -212,6 +215,7 @@ fun BentoLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSetti
             checked = prefs.homeChips,
             onCheckedChange = { v -> edit { it.copy(homeChips = v) } },
         )
+        }
         SettingsActionRow(title = stringResource(Res.string.bento_reset_look)) {
             edit { BentoPrefs(tiles = it.tiles) }
         }
@@ -336,3 +340,5 @@ fun BentoDesignPreview() {
         }
     }
 }
+
+/*sc-pages*/

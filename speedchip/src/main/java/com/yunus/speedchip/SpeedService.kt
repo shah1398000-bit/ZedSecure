@@ -14,7 +14,17 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
+import kotlin.math.cos
+import kotlin.math.ln
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import dev.cluvex.zedsecure.domain.model.NotifChip
 import dev.cluvex.zedsecure.ui.format.formatBytes
 import dev.cluvex.zedsecure.ui.format.formatRate
@@ -80,6 +90,36 @@ class SpeedService : Service() {
         return when { s < 60 -> "${s}s"; s < 3600 -> "${s / 60}m"; else -> "${s / 3600}h" }
     }
 
+    private val iconCache = arrayOfNulls<IconCompat>(41)
+
+    private fun gaugeIcon(bps: Long): IconCompat {
+        val f = (ln(1.0 + bps / 1024.0) / ln(1.0 + 30.0 * 1024.0)).coerceIn(0.0, 1.0)
+        val step = (f * 40).roundToInt()
+        iconCache[step]?.let { return it }
+        val size = 96
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val cv = Canvas(bmp)
+        val c = size / 2f
+        val r = size * 0.38f
+        val w = size * 0.10f
+        val box = RectF(c - r, c - r, c + r, c + r)
+        val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = w
+            strokeCap = Paint.Cap.ROUND
+            color = Color.argb(105, 255, 255, 255)
+        }
+        val on = Paint(track).apply { color = Color.WHITE }
+        cv.drawArc(box, 135f, 270f, false, track)
+        val sweep = 270f * step / 40f
+        if (step > 0) cv.drawArc(box, 135f, sweep, false, on)
+        val a = Math.toRadians((135f + sweep).toDouble())
+        val needle = Paint(on).apply { strokeWidth = w * 0.9f }
+        cv.drawLine(c, c, c + (r * 0.8f * cos(a)).toFloat(), c + (r * 0.8f * sin(a)).toFloat(), needle)
+        cv.drawCircle(c, c, w * 0.8f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
+        return IconCompat.createWithBitmap(bmp).also { iconCache[step] = it }
+    }
+
     private fun build(d: Long, u: Long, elapsedMs: Long, total: Long): Notification {
         val s = (application as SpeedChipApp).settings.settings.value
         val (dn, du) = formatRate(d)
@@ -95,7 +135,7 @@ class SpeedService : Service() {
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, "speed")
-            .setSmallIcon(R.drawable.ic_speed)
+            .setSmallIcon(gaugeIcon(d))
             .setContentTitle(if (s.speedInNotification) "↓ $dn $du" else "SpeedChip")
             .setContentText(if (s.speedInNotification) "↓ $dn $du   ↑ $un $uu" else "Running")
             .setOngoing(true)

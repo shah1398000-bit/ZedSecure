@@ -1494,6 +1494,7 @@ private fun UiPage(
         }
         if (bentoDesign) {
             dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate)
+            if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
             SettingsGroup {
                 SettingsSwitchRow(
                     title = stringResource(Res.string.personalize_show_ping),
@@ -1501,6 +1502,7 @@ private fun UiPage(
                     checked = s.showServerPing,
                     onCheckedChange = { v -> onUpdate { it.copy(showServerPing = v) } },
                 )
+            }
             }
         }
 
@@ -1525,6 +1527,7 @@ private fun UiPage(
                     enabled = s.liveNotification,
                     onSelected = { v -> onUpdate { it.copy(notifChip = v) } },
                 )
+                if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
                 SettingsListRow(
                     title = stringResource(Res.string.notif_style_title),
                     options = listOf(
@@ -1540,6 +1543,7 @@ private fun UiPage(
                         title = stringResource(Res.string.notif_style_title),
                         body = stringResource(Res.string.notif_style_note),
                     )
+                }
                 }
                 SettingsSwitchRow(
                     title = stringResource(Res.string.title_pref_speed_enabled),
@@ -1646,6 +1650,7 @@ private fun UiPage(
         }
 
         if (oldHome) {
+            if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
             SettingsGroup(title = stringResource(Res.string.personalize_tiles_title)) {
                 val cs = androidx.compose.material3.MaterialTheme.colorScheme
                 PersonalizeColorRow(
@@ -1695,6 +1700,7 @@ private fun UiPage(
                     onChange = { v -> onUpdate { it.copy(customUploadTileColor = v) } },
                 )
             }
+            }
 
             SettingsGroup(title = stringResource(Res.string.personalize_title)) {
                 val cs = androidx.compose.material3.MaterialTheme.colorScheme
@@ -1714,6 +1720,7 @@ private fun UiPage(
                     preview = { c -> ConnectButtonPreview(c) },
                     onChange = { v -> onUpdate { it.copy(customConnectedColor = v) } },
                 )
+                if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
                 PersonalizeColorRow(
                     title = stringResource(Res.string.personalize_config_card),
                     subtitle = stringResource(Res.string.personalize_config_card_sub),
@@ -1738,9 +1745,10 @@ private fun UiPage(
                     preview = { c -> TapHintPreview(c) },
                     onChange = { v -> onUpdate { it.copy(customTapHintColor = v) } },
                 )
+                }
             }
         }
-        if (pixelFamily) {
+        if (pixelFamily && !dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
             SettingsGroup(title = stringResource(Res.string.personalize_servers_title)) {
                 val cs = androidx.compose.material3.MaterialTheme.colorScheme
                 PersonalizeColorRow(
@@ -3042,3 +3050,5 @@ private fun ModePage(
         }
     }
 }
+
+/*sc-pages*/

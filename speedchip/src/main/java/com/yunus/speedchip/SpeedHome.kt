@@ -9,6 +9,11 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -48,6 +53,7 @@ import dev.cluvex.zedsecure.ui.format.formatRate
 import dev.cluvex.zedsecure.ui.glass.GlassZControl
 import dev.cluvex.zedsecure.ui.glass.GlassZPhase
 import dev.cluvex.zedsecure.ui.home.AltConnectControl
+import dev.cluvex.zedsecure.ui.settings.SettingsGroup
 
 private fun notifOk(c: Context) =
     c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -141,14 +147,13 @@ fun SpeedHome(s: AppSettings, padding: PaddingValues) {
         if (running) Text("↑ $un $uu", color = sub, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(32.dp))
 
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(
-                alpha = if (s.appDesign == AppDesign.Glass) 0.35f else 0.7f
-            ),
-            modifier = Modifier.fillMaxWidth(),
+        val allGood = notif && battery && live != false
+        AnimatedVisibility(
+            visible = !allGood,
+            exit = if (s.reduceMotion) ExitTransition.None
+            else fadeOut() + slideOutHorizontally(targetOffsetX = { it }) + shrinkVertically(),
         ) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            SettingsGroup {
                 StatusRow("Notifications allowed", notif, "Allow", onBg) {
                     perm.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
@@ -163,7 +168,7 @@ fun SpeedHome(s: AppSettings, padding: PaddingValues) {
 @Composable
 private fun StatusRow(label: String, ok: Boolean?, action: String, color: Color, onAction: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
