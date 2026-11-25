@@ -25,7 +25,12 @@ android {
     }
 }
 
-kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_17 } }
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
+        freeCompilerArgs.add("-Xskip-metadata-version-check")
+    }
+}
 
 tasks.matching {
     it.name.matches(Regex("merge.*Assets")) || it.name.contains("lint", ignoreCase = true)
