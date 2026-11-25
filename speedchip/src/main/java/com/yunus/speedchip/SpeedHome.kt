@@ -9,24 +9,21 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,14 +32,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.domain.model.AppSettings
+import dev.cluvex.zedsecure.domain.model.ConnectButtonStyle
+import dev.cluvex.zedsecure.domain.model.ConnectionState
+import dev.cluvex.zedsecure.ui.bento.BentoConnectControl
 import dev.cluvex.zedsecure.ui.format.formatRate
+import dev.cluvex.zedsecure.ui.glass.GlassZControl
+import dev.cluvex.zedsecure.ui.glass.GlassZPhase
+import dev.cluvex.zedsecure.ui.home.AltConnectControl
 
 private fun notifOk(c: Context) =
     c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -73,13 +78,19 @@ private fun askBattery(c: Context) {
     runCatching { c.startActivity(i) }
 }
 
+private fun altStyle(st: ConnectButtonStyle) = when (st) {
+    ConnectButtonStyle.Ring, ConnectButtonStyle.Bar,
+    ConnectButtonStyle.Icon, ConnectButtonStyle.Switch -> st
+    else -> ConnectButtonStyle.Bar
+}
+
 @Composable
-fun HomeScreen(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun SpeedHome(s: AppSettings, padding: PaddingValues) {
     val ctx = LocalContext.current
     val running by SpeedState.running.collectAsStateWithLifecycle()
     val down by SpeedState.down.collectAsStateWithLifecycle()
     val up by SpeedState.up.collectAsStateWithLifecycle()
-    var refresh by mutableIntStateOf(0).let { remember { it } }.let { st -> androidx.compose.runtime.remember { st } }
+    var refresh by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refresh++ }
     val notif = remember(refresh) { notifOk(ctx) }
     val live = remember(refresh) { liveOk(ctx) }
@@ -95,61 +106,73 @@ fun HomeScreen(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
         else perm.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    val bg = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val fg = if (running) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val state = if (running) ConnectionState.Connected else ConnectionState.Idle
+    val animate = !s.reduceMotion
+    val onBg = MaterialTheme.colorScheme.onBackground
+    val sub = MaterialTheme.colorScheme.onSurfaceVariant
     val (dn, du) = formatRate(down)
     val (un, uu) = formatRate(up)
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("SpeedChip", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            OutlinedButton(onClick = onOpenSettings) { Text("Settings") }
-        }
-        Spacer(Modifier.height(48.dp))
-        Box(
-            Modifier.size(200.dp).clip(CircleShape).background(bg).clickable { toggle() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                if (running) "STOP" else "START",
-                color = fg,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
+        Spacer(Modifier.height(24.dp))
+        Text("SpeedChip", color = onBg, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(36.dp))
+
+        when (s.appDesign) {
+            AppDesign.Glass -> GlassZControl(
+                phase = if (running) GlassZPhase.On else GlassZPhase.Off,
+                onClick = toggle,
+                label = if (running) "Stop" else "Start",
+                animate = animate,
             )
+            AppDesign.Bento -> BentoConnectControl(state, toggle, animate)
+            AppDesign.Pixel -> AltConnectControl(ConnectButtonStyle.Ring, state, toggle)
+            AppDesign.Old -> AltConnectControl(altStyle(s.connectButtonStyle), state, toggle)
+        }
+
+        Spacer(Modifier.height(28.dp))
+        Text(
+            if (running) "↓ $dn $du" else "Stopped",
+            color = onBg, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold,
+        )
+        if (running) Text("↑ $un $uu", color = sub, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(32.dp))
+
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = if (s.appDesign == AppDesign.Glass) 0.35f else 0.7f
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                StatusRow("Notifications allowed", notif, "Allow", onBg) {
+                    perm.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                StatusRow("Live Update (status-bar chip)", live, "Enable", onBg) { openLive(ctx) }
+                StatusRow("Battery: no restrictions", battery, "Fix", onBg) { askBattery(ctx) }
+            }
         }
         Spacer(Modifier.height(24.dp))
-        Text(
-            if (running) "↓ $dn $du     ↑ $un $uu" else "Stopped",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.height(36.dp))
-        StatusRow("Notifications allowed", notif, "Allow") {
-            perm.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        StatusRow("Live Update (status-bar chip)", live, "Enable") { openLive(ctx) }
-        StatusRow("Battery: no restrictions", battery, "Fix") { askBattery(ctx) }
     }
 }
 
 @Composable
-private fun StatusRow(label: String, ok: Boolean?, action: String, onAction: () -> Unit) {
+private fun StatusRow(label: String, ok: Boolean?, action: String, color: Color, onAction: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             when (ok) { true -> "✓"; false -> "✗"; null -> "?" },
+            color = color,
             modifier = Modifier.width(28.dp),
             style = MaterialTheme.typography.titleMedium,
         )
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Text(label, color = color, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         if (ok != true) OutlinedButton(onClick = onAction) { Text(action) }
     }
 }

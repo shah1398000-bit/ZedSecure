@@ -128,8 +128,13 @@ fun NavBarSettingsPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
-        NavPreview(tabs.map { TopDestination.of(it) }, style, bento, glass)
+        NavPreview(
+            if (dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) listOf(TopDestination.Home, TopDestination.Settings)
+            else tabs.map { TopDestination.of(it) },
+            style, bento, glass,
+        )
 
+        if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
         SettingsGroup(title = stringResource(Res.string.navbar_tabs)) {
             SettingsSegment {
                 TabList(tabs, onReorder = ::saveTabs, onRemove = { tab -> saveTabs(tabs - tab) })
@@ -157,6 +162,7 @@ fun NavBarSettingsPage(
                     }
                 }
             }
+        }
         }
 
         if (glass) {

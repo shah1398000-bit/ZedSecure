@@ -8,30 +8,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.cluvex.zedsecure.core.platform.LocaleManager
-import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.domain.model.NotifChip
 import dev.cluvex.zedsecure.domain.model.ThemeMode
-import dev.cluvex.zedsecure.ui.glass.GlassWallpaperLayer
-import dev.cluvex.zedsecure.ui.glass.rememberGlassChrome
 import dev.cluvex.zedsecure.ui.platform.LocalPlatform
-import dev.cluvex.zedsecure.ui.settings.SettingsPage
-import dev.cluvex.zedsecure.ui.settings.SettingsScreen
 import dev.cluvex.zedsecure.ui.theme.ZedSecureTheme
 
 class MainActivity : ComponentActivity() {
@@ -53,7 +38,6 @@ class MainActivity : ComponentActivity() {
         val platform = AppPlatform(this)
         setContent {
             val s by repo.settings.collectAsStateWithLifecycle()
-            var screen by rememberSaveable { mutableStateOf("home") }
             val dark = when (s.themeMode) {
                 ThemeMode.System -> isSystemInDarkTheme()
                 ThemeMode.Light -> false
@@ -83,36 +67,15 @@ class MainActivity : ComponentActivity() {
                 uiScale = s.uiScale,
             ) {
                 CompositionLocalProvider(LocalPlatform provides platform) {
-                    val glassDesign = s.appDesign == AppDesign.Glass
-                    val chrome = if (glassDesign) rememberGlassChrome() else null
-                    Box(
-                        Modifier.fillMaxSize().then(
-                            if (glassDesign) Modifier
-                            else Modifier.background(MaterialTheme.colorScheme.background)
-                        )
-                    ) {
-                        if (chrome != null) GlassWallpaperLayer(chrome.wall)
-                        if (screen == "home") {
-                            HomeScreen(
-                                onOpenSettings = { screen = "settings" },
-                                modifier = Modifier.safeDrawingPadding(),
-                            )
-                        } else {
-                            SettingsScreen(
-                                settings = s,
-                                contentPadding = PaddingValues(),
-                                onUpdate = { repo.update(it) },
-                                onLanguage = { lang ->
-                                    repo.update { it.copy(language = lang) }
-                                    LocaleManager.reassert(lang.tag)
-                                    recreate()
-                                },
-                                modifier = Modifier.safeDrawingPadding(),
-                                initialPage = SettingsPage.Ui,
-                                onDeepLinkBack = { screen = "home" },
-                            )
-                        }
-                    }
+                    SpeedChipHost(
+                        s = s,
+                        onUpdate = { repo.update(it) },
+                        onLanguage = { lang ->
+                            repo.update { it.copy(language = lang) }
+                            LocaleManager.reassert(lang.tag)
+                            recreate()
+                        },
+                    )
                 }
             }
         }

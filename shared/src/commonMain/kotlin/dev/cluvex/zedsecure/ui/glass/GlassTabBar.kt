@@ -169,8 +169,10 @@ fun GlassTabBar(
                 when (shown) {
                     BarMode.Full -> {
                         TabPill(tabs, current, onSelect, backdrop, tilt, Modifier.weight(1f))
-                        Spacer(Modifier.width(10.dp))
-                        SearchCircle(backdrop, tilt, onOpenSearch)
+                        if (!dev.cluvex.zedsecure.ui.platform.LocalPlatform.current.minimalInterface) {
+                            Spacer(Modifier.width(10.dp))
+                            SearchCircle(backdrop, tilt, onOpenSearch)
+                        }
                     }
                     BarMode.Mini -> {
                         CurrentTabCircle(current, backdrop, tilt, onExpand)

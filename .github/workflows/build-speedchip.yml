@@ -9,7 +9,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: speedchip-debug-keystore-v1
       - uses: gradle/actions/setup-gradle@v4
-      - run: chmod +x gradlew && ./gradlew :speedchip:assembleDebug --stacktrace
+      - run: chmod +x gradlew && ./gradlew :speedchip:assembleRelease --stacktrace
       - uses: actions/upload-artifact@v4
-        with: { name: apk, path: speedchip/build/outputs/apk/debug/*.apk }
+        with: { name: apk, path: speedchip/build/outputs/apk/release/*.apk }
