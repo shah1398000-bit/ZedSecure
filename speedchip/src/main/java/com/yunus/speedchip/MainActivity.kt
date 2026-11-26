@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -22,6 +23,11 @@ import dev.cluvex.zedsecure.ui.theme.ZedSecureTheme
 class MainActivity : ComponentActivity() {
     private val repo get() = (application as SpeedChipApp).settings
 
+    private val notifPerm =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+            if (ok && Controls.wantsOn(this)) Controls.start(this)
+        }
+
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         enableEdgeToEdge()
@@ -31,9 +37,22 @@ class MainActivity : ComponentActivity() {
             repo.update { it.copy(liveNotification = true, speedInNotification = true, notifChip = NotifChip.Speed) }
             sp.edit().putBoolean("init2", true).apply()
         }
-        if (Controls.wantsOn(this) && !SpeedState.running.value &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+        if (!sp.getBoolean("init3", false)) {
+            repo.update {
+                it.copy(
+                    reduceMotion = true,
+                    glass = it.glass.copy(reduceTransparency = true),
+                    bento = it.bento.copy(wave = false, motifs = false, playfulTouch = false),
+                )
+            }
+            sp.edit().putBoolean("init3", true).apply()
+        }
+
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else if (Controls.wantsOn(this) && !SpeedState.running.value) {
             Controls.start(this)
+        }
 
         val platform = AppPlatform(this)
         setContent {

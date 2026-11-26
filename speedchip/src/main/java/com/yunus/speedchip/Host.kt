@@ -2,6 +2,8 @@ package com.yunus.speedchip
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -92,7 +94,11 @@ fun SpeedChipHost(
                 )
             ) {
                 CompositionLocalProvider(LocalGlassSearch provides (if (glass) search else null)) {
-                    Crossfade(targetState = current, label = "tab") { dest ->
+                    Crossfade(
+                        targetState = current,
+                        animationSpec = if (s.reduceMotion) snap() else tween(220),
+                        label = "tab",
+                    ) { dest ->
                         when (dest) {
                             TopDestination.Settings -> SettingsScreen(
                                 settings = s,
@@ -103,7 +109,7 @@ fun SpeedChipHost(
                                 initialPage = SettingsPage.Ui,
                                 onDeepLinkBack = { current = TopDestination.Home },
                             )
-                            else -> SpeedHome(s, inner)
+                            else -> SpeedHome(s, inner, onUpdate)
                         }
                     }
                 }

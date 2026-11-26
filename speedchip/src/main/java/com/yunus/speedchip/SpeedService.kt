@@ -35,14 +35,15 @@ import kotlin.math.sin
 
 class SpeedService : Service() {
     companion object {
-        const val STEPS = 80
+        const val STEPS = 40
         const val MIN_BPS = 30L * 1024L
-        const val TICK_MS = 250L
+        const val TICK_MS = 400L
         const val SAMPLE_MS = 1000L
+        const val FGS_ID = 1
+        const val ISLAND_ID = 2
     }
 
     private data class Spec(
-        val active: Boolean,
         val step: Int,
         val title: String,
         val content: String,
@@ -55,9 +56,8 @@ class SpeedService : Service() {
     private lateinit var cm: ConnectivityManager
     private lateinit var pm: PowerManager
     private val iconCache = arrayOfNulls<IconCompat>(STEPS + 1)
-
-    @Volatile private var vpnUp = false
     private var vpnCb: ConnectivityManager.NetworkCallback? = null
+    private var alive = false
 
     private var t0 = 0L
     private var rx0 = 0L
@@ -68,7 +68,7 @@ class SpeedService : Service() {
     private var curD = 0L
     private var curU = 0L
     private var needle = 0.0
-    private var wasActive = false
+    private var wasActive: Boolean? = null
     private var lastSpec: Spec? = null
 
     private val tick = Runnable { step() }
@@ -77,14 +77,12 @@ class SpeedService : Service() {
         nm = getSystemService(NotificationManager::class.java)
         cm = getSystemService(ConnectivityManager::class.java)
         pm = getSystemService(PowerManager::class.java)
+        alive = true
         SpeedState.running.value = true
         nm.createNotificationChannel(
-            NotificationChannel("speed", "Speed", NotificationManager.IMPORTANCE_LOW))
+            NotificationChannel("service", "SpeedChip service", NotificationManager.IMPORTANCE_MIN))
         nm.createNotificationChannel(
-            NotificationChannel("idle", "Waiting for VPN", NotificationManager.IMPORTANCE_MIN))
-
-        vpnUp = scanVpn()
-        registerVpn()
+            NotificationChannel("speed", "Speed", NotificationManager.IMPORTANCE_LOW))
 
         val now = SystemClock.elapsedRealtime()
         t0 = now
@@ -93,19 +91,17 @@ class SpeedService : Service() {
         sampTx = TrafficStats.getTotalTxBytes()
         rx0 = sampRx
         tx0 = sampTx
-        val active = !Controls.followVpn(this) || vpnUp
-        wasActive = active
-        val sp = spec(0, 0, 0, 0, 0, active)
-        lastSpec = sp
-        startForeground(1, make(sp), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        h.postDelayed(tick, TICK_MS)
+        startForeground(FGS_ID, serviceNote("Starting"), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        registerVpn()
+        h.post(tick)
     }
 
     private fun step() {
+        if (!alive) return
         val now = SystemClock.elapsedRealtime()
-        val vpn = vpnUp
-        val active = !Controls.followVpn(this) || vpn
+        val vpn = scanVpn()
         SpeedState.vpn.value = vpn
+        val active = !Controls.followVpn(this) || vpn
 
         if (now - sampT >= SAMPLE_MS) {
             val rx = TrafficStats.getTotalRxBytes()
@@ -120,34 +116,36 @@ class SpeedService : Service() {
             SpeedState.down.value = curD
             SpeedState.up.value = curU
         }
-        if (active && !wasActive) { t0 = now; rx0 = sampRx; tx0 = sampTx }
-        wasActive = active
+
+        if (wasActive != active) {
+            if (active) {
+                t0 = now; rx0 = sampRx; tx0 = sampTx
+            } else {
+                nm.cancel(ISLAND_ID)
+                lastSpec = null
+            }
+            nm.notify(FGS_ID, serviceNote(if (active) "Running" else "Waiting for VPN"))
+            wasActive = active
+        }
 
         val target = frac(curD)
-        needle += (target - needle) * 0.3
-        if (abs(target - needle) < 0.004) needle = target
+        needle += (target - needle) * 0.35
+        if (abs(target - needle) < 0.01) needle = target
 
         val interactive = pm.isInteractive
-        if (interactive) {
-            if (active) {
-                var total = sampRx - rx0 + sampTx - tx0
-                if (vpn) total /= 2
-                post(spec((needle * STEPS).roundToInt(), curD, curU, now - t0, total, true))
-            } else {
-                post(spec(0, 0, 0, 0, 0, false))
+        if (active && interactive) {
+            var total = sampRx - rx0 + sampTx - tx0
+            if (vpn) total /= 2
+            val sp = spec((needle * STEPS).roundToInt(), curD, curU, now - t0, total)
+            if (sp != lastSpec) {
+                lastSpec = sp
+                nm.notify(ISLAND_ID, island(sp))
             }
         }
-        h.postDelayed(tick, if (!interactive) 2000L else if (active) TICK_MS else 1000L)
+        h.postDelayed(tick, if (interactive) TICK_MS else 2000L)
     }
 
-    private fun post(sp: Spec) {
-        if (sp == lastSpec) return
-        lastSpec = sp
-        nm.notify(1, make(sp))
-    }
-
-    private fun spec(stepIdx: Int, d: Long, u: Long, elapsedMs: Long, total: Long, active: Boolean): Spec {
-        if (!active) return Spec(false, 0, "SpeedChip", "Waiting for VPN", "", false)
+    private fun spec(stepIdx: Int, d: Long, u: Long, elapsedMs: Long, total: Long): Spec {
         val s = (application as SpeedChipApp).settings.settings.value
         val (dn, du) = formatRate(d)
         val (un, uu) = formatRate(u)
@@ -160,25 +158,26 @@ class SpeedService : Service() {
         }
         val title = if (s.speedInNotification) "↓ $dn $du" else "SpeedChip"
         val content = if (s.speedInNotification) "↓ $dn $du   ↑ $un $uu" else "Running"
-        return Spec(true, stepIdx.coerceIn(0, STEPS), title, content, chip, s.liveNotification)
+        return Spec(stepIdx.coerceIn(0, STEPS), title, content, chip, s.liveNotification)
     }
 
-    private fun make(sp: Spec): Notification {
-        val open = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        if (!sp.active) {
-            return NotificationCompat.Builder(this, "idle")
-                .setSmallIcon(R.drawable.ic_speed)
-                .setContentTitle(sp.title)
-                .setContentText(sp.content)
-                .setOngoing(true)
-                .setSilent(true)
-                .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_MIN)
-                .setContentIntent(open)
-                .build()
-        }
-        return NotificationCompat.Builder(this, "speed")
+    private fun openIntent() = PendingIntent.getActivity(
+        this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+
+    private fun serviceNote(text: String): Notification =
+        NotificationCompat.Builder(this, "service")
+            .setSmallIcon(R.drawable.ic_speed)
+            .setContentTitle("SpeedChip")
+            .setContentText(text)
+            .setOngoing(true)
+            .setSilent(true)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setContentIntent(openIntent())
+            .build()
+
+    private fun island(sp: Spec): Notification =
+        NotificationCompat.Builder(this, "speed")
             .setSmallIcon(gaugeIcon(sp.step))
             .setContentTitle(sp.title)
             .setContentText(sp.content)
@@ -188,11 +187,10 @@ class SpeedService : Service() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setContentIntent(open)
+            .setContentIntent(openIntent())
             .setShortCriticalText(sp.chip)
             .setRequestPromotedOngoing(sp.live)
             .build()
-    }
 
     private fun frac(bps: Long): Double =
         (ln(1.0 + bps / 1024.0) / ln(1.0 + 30.0 * 1024.0)).coerceIn(0.0, 1.0)
@@ -228,14 +226,22 @@ class SpeedService : Service() {
         cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
     }
 
+    private fun wake() {
+        h.post {
+            if (!alive) return@post
+            h.removeCallbacks(tick)
+            step()
+        }
+    }
+
     private fun registerVpn() {
         val req = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
             .build()
         val cb = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { vpnUp = true }
-            override fun onLost(network: Network) { vpnUp = scanVpn() }
+            override fun onAvailable(network: Network) { wake() }
+            override fun onLost(network: Network) { wake() }
         }
         cm.registerNetworkCallback(req, cb)
         vpnCb = cb
@@ -261,8 +267,10 @@ class SpeedService : Service() {
     override fun onBind(i: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        h.removeCallbacks(tick)
+        alive = false
+        h.removeCallbacksAndMessages(null)
         vpnCb?.let { runCatching { cm.unregisterNetworkCallback(it) } }
+        nm.cancel(ISLAND_ID)
         SpeedState.running.value = false
         SpeedState.vpn.value = false
         SpeedState.down.value = 0
