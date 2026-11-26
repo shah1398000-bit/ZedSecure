@@ -6,6 +6,8 @@ import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
-        if (i.action == Intent.ACTION_BOOT_COMPLETED && Controls.wantsOn(c)) Controls.start(c)
+        val ok = i.action == Intent.ACTION_BOOT_COMPLETED ||
+            i.action == Intent.ACTION_MY_PACKAGE_REPLACED
+        if (ok && Controls.wantsOn(c)) Controls.start(c)
     }
 }
