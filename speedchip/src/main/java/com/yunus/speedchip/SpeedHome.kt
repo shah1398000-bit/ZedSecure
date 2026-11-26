@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +55,7 @@ import dev.cluvex.zedsecure.ui.glass.GlassZControl
 import dev.cluvex.zedsecure.ui.glass.GlassZPhase
 import dev.cluvex.zedsecure.ui.home.AltConnectControl
 import dev.cluvex.zedsecure.ui.settings.SettingsGroup
+import dev.cluvex.zedsecure.ui.settings.SettingsSwitchRow
 
 private fun notifOk(c: Context) =
     c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -140,11 +142,14 @@ fun SpeedHome(s: AppSettings, padding: PaddingValues) {
         }
 
         Spacer(Modifier.height(28.dp))
+        val vpn by SpeedState.vpn.collectAsStateWithLifecycle()
+        var follow by remember { mutableStateOf(Controls.followVpn(ctx)) }
+        val waiting = running && follow && !vpn
         Text(
-            if (running) "↓ $dn $du" else "Stopped",
+            if (waiting) "Waiting for VPN" else if (running) "↓ $dn $du" else "Stopped",
             color = onBg, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold,
         )
-        if (running) Text("↑ $un $uu", color = sub, style = MaterialTheme.typography.titleMedium)
+        if (running && !waiting) Text("↑ $un $uu", color = sub, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(32.dp))
 
         val allGood = notif && battery && live != false
@@ -160,6 +165,15 @@ fun SpeedHome(s: AppSettings, padding: PaddingValues) {
                 StatusRow("Live Update (status-bar chip)", live, "Enable", onBg) { openLive(ctx) }
                 StatusRow("Battery: no restrictions", battery, "Fix", onBg) { askBattery(ctx) }
             }
+        }
+        Spacer(Modifier.height(16.dp))
+        SettingsGroup {
+            SettingsSwitchRow(
+                title = "Follow VPN",
+                summary = "Show the island only while a VPN is connected",
+                checked = follow,
+                onCheckedChange = { follow = it; Controls.setFollowVpn(ctx, it) },
+            )
         }
         Spacer(Modifier.height(24.dp))
     }
