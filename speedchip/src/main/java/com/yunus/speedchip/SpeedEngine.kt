@@ -28,6 +28,7 @@ import androidx.core.graphics.drawable.IconCompat
 import dev.cluvex.zedsecure.domain.model.NotifChip
 import dev.cluvex.zedsecure.ui.format.formatBytes
 import dev.cluvex.zedsecure.ui.format.formatRate
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.roundToInt
@@ -35,11 +36,14 @@ import kotlin.math.sin
 
 class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean) {
     companion object {
-        const val STEPS = 24
+        const val STEPS = 54
         const val MIN_BPS = 30L * 1024L
         const val TICK_MS = 1000L
         const val FGS_ID = 1
         const val ISLAND_ID = 2
+        const val FRAME_MS = 250L
+        const val KEEPALIVE_MS = 25_000L
+        const val TIMEOUT_MS = 60_000L
         @Volatile private var current: SpeedEngine? = null
     }
 
@@ -70,6 +74,9 @@ class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean
     private var curU = 0L
     private var wasActive: Boolean? = null
     private var lastSpec: Spec? = null
+    private var goal = 0.0
+    private var needle = 0.0
+    private var lastPostAt = 0L
 
     private val tick = Runnable { step() }
 
@@ -92,6 +99,7 @@ class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean
         wasActive = null
         lastSpec = null
         curD = 0; curU = 0
+        goal = 0.0; needle = 0.0; lastPostAt = 0L
         SpeedState.mode.value = if (withServiceNote) "service" else "accessibility"
         SpeedState.running.value = true
         registerVpn()
@@ -145,6 +153,7 @@ class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean
                 nm.cancel(ISLAND_ID)
                 lastSpec = null
                 curD = 0; curU = 0
+                goal = 0.0; needle = 0.0
                 SpeedState.island.value = false
                 SpeedState.down.value = 0
                 SpeedState.up.value = 0
@@ -153,18 +162,32 @@ class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean
             wasActive = active
         }
 
+        var delay = TICK_MS
         if (active && screen) {
-            sample(now, vpn)
+            if (now - sampT >= TICK_MS - 50) {
+                sample(now, vpn)
+                goal = frac(curD) * STEPS
+            }
+            val smooth = Controls.smoothNeedle(ctx)
+            if (smooth) {
+                needle += (goal - needle) * 0.5
+                if (abs(goal - needle) < 0.6) needle = goal
+            } else {
+                needle = goal
+            }
             var total = sampRx - rx0 + sampTx - tx0
             if (vpn) total /= 2
             val sp = spec(now - t0, total)
-            if (sp != lastSpec) {
+            if (sp != lastSpec || now - lastPostAt >= KEEPALIVE_MS) {
                 lastSpec = sp
+                lastPostAt = now
                 nm.notify(ISLAND_ID, island(sp))
                 SpeedState.island.value = true
             }
+            delay = if (smooth && needle != goal) FRAME_MS
+            else (sampT + TICK_MS - now).coerceIn(50L, TICK_MS)
         }
-        if (screen) h.postDelayed(tick, TICK_MS)
+        if (screen) h.postDelayed(tick, delay)
     }
 
     private fun sample(now: Long, vpn: Boolean) {
@@ -194,7 +217,7 @@ class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean
         }
         val title = if (s.speedInNotification) "↓ $dn $du" else "SpeedChip"
         val content = if (s.speedInNotification) "↓ $dn $du   ↑ $un $uu" else "Running"
-        val stepIdx = (frac(curD) * STEPS).roundToInt().coerceIn(0, STEPS)
+        val stepIdx = needle.roundToInt().coerceIn(0, STEPS)
         return Spec(stepIdx, title, content, chip, s.liveNotification)
     }
 
@@ -227,6 +250,7 @@ class SpeedEngine(private val ctx: Context, private val withServiceNote: Boolean
             .setContentIntent(openIntent())
             .setShortCriticalText(sp.chip)
             .setRequestPromotedOngoing(sp.live)
+            .setTimeoutAfter(TIMEOUT_MS)
             .build()
 
     private fun frac(bps: Long): Double =

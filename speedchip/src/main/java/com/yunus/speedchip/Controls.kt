@@ -9,6 +9,8 @@ object Controls {
     private fun sp(c: Context) = c.getSharedPreferences("sc", Context.MODE_PRIVATE)
     fun wantsOn(c: Context) = sp(c).getBoolean("enabled", true)
     fun followVpn(c: Context) = sp(c).getBoolean("follow_vpn", true)
+    fun smoothNeedle(c: Context) = sp(c).getBoolean("smooth_needle", true)
+    fun setSmoothNeedle(c: Context, v: Boolean) = sp(c).edit().putBoolean("smooth_needle", v).apply()
 
     fun setFollowVpn(c: Context, v: Boolean) {
         sp(c).edit().putBoolean("follow_vpn", v).apply()
@@ -25,11 +27,8 @@ object Controls {
     fun start(c: Context) {
         sp(c).edit().putBoolean("enabled", true).apply()
         val a = SpeedA11y.instance
-        when {
-            a != null -> a.engineStart()
-            a11yEnabled(c) -> Unit
-            else -> c.startForegroundService(Intent(c, SpeedService::class.java))
-        }
+        if (a != null) a.engineStart()
+        else c.startForegroundService(Intent(c, SpeedService::class.java))
     }
 
     fun stop(c: Context) {

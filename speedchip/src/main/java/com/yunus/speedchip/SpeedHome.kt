@@ -214,6 +214,13 @@ fun SpeedHome(
                 checked = follow,
                 onCheckedChange = { follow = it; Controls.setFollowVpn(ctx, it) },
             )
+            var needleSmooth by remember { mutableStateOf(Controls.smoothNeedle(ctx)) }
+            SettingsSwitchRow(
+                title = "Smooth needle",
+                summary = "Animate the island gauge (more updates per second)",
+                checked = needleSmooth,
+                onCheckedChange = { needleSmooth = it; Controls.setSmoothNeedle(ctx, it) },
+            )
             SettingsSwitchRow(
                 title = "Smooth mode",
                 summary = "Fewer animations and effects for better performance",
@@ -227,6 +234,14 @@ fun SpeedHome(
                         )
                     }
                 },
+            )
+        }
+        if (isXiaomi()) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Tip: lock SpeedChip in Recents (hold its card, tap the lock) so Clear all will not stop it.",
+                color = sub, style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 8.dp),
             )
         }
         Spacer(Modifier.height(24.dp))
