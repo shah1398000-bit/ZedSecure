@@ -117,6 +117,12 @@ private fun openAutostart(c: Context) {
     }
 }
 
+private fun openA11y(c: Context) {
+    runCatching {
+        c.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
+
 private fun altStyle(st: ConnectButtonStyle) = when (st) {
     ConnectButtonStyle.Ring, ConnectButtonStyle.Bar,
     ConnectButtonStyle.Icon, ConnectButtonStyle.Switch -> st
@@ -137,6 +143,7 @@ fun SpeedHome(
     val live = remember(refresh) { liveOk(ctx) }
     val battery = remember(refresh) { batteryOk(ctx) }
     val auto = remember(refresh) { autostartOk(ctx) }
+    val a11y = remember(refresh) { Controls.a11yEnabled(ctx) }
     var follow by remember { mutableStateOf(Controls.followVpn(ctx)) }
 
     val perm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
@@ -180,7 +187,7 @@ fun SpeedHome(
         Readout(running, follow, onBg, sub)
         Spacer(Modifier.height(32.dp))
 
-        val allGood = notif && battery && live != false && auto != false
+        val allGood = notif && battery && live != false && auto != false && a11y
         AnimatedVisibility(
             visible = !allGood,
             exit = if (s.reduceMotion) ExitTransition.None
@@ -195,6 +202,7 @@ fun SpeedHome(
                 if (isXiaomi()) {
                     StatusRow("Background autostart", auto, "Open", onBg) { openAutostart(ctx) }
                 }
+                StatusRow("Always-on (Accessibility)", a11y, "Enable", onBg) { openA11y(ctx) }
             }
         }
 
@@ -238,6 +246,14 @@ private fun Readout(running: Boolean, follow: Boolean, color: Color, sub: Color)
         color = color, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold,
     )
     if (running && !waiting) Text("↑ $un $uu", color = sub, style = MaterialTheme.typography.titleMedium)
+    if (running) {
+        val island by SpeedState.island.collectAsStateWithLifecycle()
+        val mode by SpeedState.mode.collectAsStateWithLifecycle()
+        Text(
+            "VPN: ${if (vpn) "on" else "off"} · Island: ${if (island) "shown" else "hidden"} · $mode",
+            color = sub, style = MaterialTheme.typography.bodySmall,
+        )
+    }
 }
 
 @Composable

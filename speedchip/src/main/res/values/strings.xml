@@ -1,0 +1,4 @@
+<resources>
+    <string name="a11y_label">SpeedChip</string>
+    <string name="a11y_desc">Keeps the speed indicator running in the background. SpeedChip does not read your screen or any content.</string>
+</resources>
